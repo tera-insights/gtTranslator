@@ -7,10 +7,10 @@ MakeGLA <- function(types = list(), constants = list(), representation, prototyp
   ## declaring global typedefs
   types <- substitute(types)
   if (!(is.call.to(types, "list") && is.null(names(types)) && all(is.symbols(as.list(types)[-1]))))
-    Stop("`types` must be an un-named list specifying type names.")
+    stop("`types` must be an un-named list specifying type names.")
   grokit$typedefs <- unlist(lapply(as.list(types)[-1], as.character))
   if (length(unique(grokit$typedefs)) != length(grokit$typedefs))
-    Stop("type names must be pairwise distinct.")
+    stop("type names must be pairwise distinct.")
   if (is.null(grokit$typedefs))
     grokit$typedefs <- character()
 
@@ -18,15 +18,15 @@ MakeGLA <- function(types = list(), constants = list(), representation, prototyp
   constants <- substitute(constants)
   if (!(is.call.to(constants, "list") && all(is.constant(constants <- as.list(constants)[-1]))
         && (length(constants) == 0 || (!is.null(names(constants)) && all(names(constants) != "")))))
-    Stop("`constants` must be a named list specifying constant values.")
+    stop("`constants` must be a named list specifying constant values.")
   if (any(bad <- names(constants) %in% grokit$typedefs))
-    Stop("nameclashes between `constants` and `types`: ", names(constants)[bad])
+    stop("nameclashes between `constants` and `types`: ", names(constants)[bad])
   if (is.null(constants))
     grokit$constants <- character()
   else
     grokit$constants <- names(constants)
   if (length(unique(grokit$constants)) != length(grokit$constants))
-    Stop("constant names must be pairwise distinct.")
+    stop("constant names must be pairwise distinct.")
   init(grokit$constants)
   constants <- Convert.Constants(constants)
   names(constants) <- grokit$constants
@@ -34,15 +34,15 @@ MakeGLA <- function(types = list(), constants = list(), representation, prototyp
   ## declaring fields of the class
   representation <- substitute(representation)
   if (!(is.call(representation) && is.symbol(representation[[1]]) && representation[[1]] == "list"))
-    Stop("representation must be a field => type list.")
+    stop("representation must be a field => type list.")
   representation <- as.list(representation)[-1]
   if (is.null(names(representation)) || any(names(representation) == ""))
-    Stop("representation must have a name for each element.")
+    stop("representation must have a name for each element.")
   if (any(bad <- duplicated(names(representation))))
-    Stop("cannot have repeated class variable names in representation: ",
+    stop("cannot have repeated class variable names in representation: ",
          paste(names(representation)[bad], collapse = ", "))
   if (any(bad <- !is.type(representation)))
-    Stop("types improperly specified: ", paste(lapply(representation[bad], deparse), collapse = ", "))
+    stop("types improperly specified: ", paste(lapply(representation[bad], deparse), collapse = ", "))
   ## this actually gets passed through to PHP with names => type
   fields <- as.list(Convert.Type(representation))
   ## this is just used in R and only contains the names of the fields as no type-checking is done
@@ -52,13 +52,13 @@ MakeGLA <- function(types = list(), constants = list(), representation, prototyp
   ## Enforcing that the expressions for the three functions at least evaluate to
   ## functions in R, although they could possibly be specified non-literally.
   if (!is.function(prototype))
-    Stop("prototype must be a function.")
+    stop("prototype must be a function.")
   if (!is.function(AddItem))
-    Stop("AddItem must be a function.")
+    stop("AddItem must be a function.")
   if (!is.function(AddState))
-    Stop("AddState must be a function.")
+    stop("AddState must be a function.")
   if (!is.function(GetResult))
-    Stop("GetResult must be a function.")
+    stop("GetResult must be a function.")
 
   prototype <- substitute(prototype)
   AddItem <- substitute(AddItem)
@@ -78,7 +78,7 @@ MakeGLA <- function(types = list(), constants = list(), representation, prototyp
 
   initialized <- as.list(prototype[[2]])
   if (any(initialized == ""))
-    Stop("arguments to prototype must be default values.")
+    stop("arguments to prototype must be default values.")
   init(names(initialized))
   initialized <- lapply(initialized, Convert.Expr)
   constructor <- Convert.Function(prototype)
@@ -88,7 +88,7 @@ MakeGLA <- function(types = list(), constants = list(), representation, prototyp
   init(names(params))
   params[params == ""] <- list(NULL)
   if (any(bad <- !is.type(params) && !(nulls <- as.logical(lapply(params, is.null)))))
-    Stop("improperly specified types in AddItem: ", paste(lapply(params[bad], deparse), collapse = ", "))
+    stop("improperly specified types in AddItem: ", paste(lapply(params[bad], deparse), collapse = ", "))
   arguments <- names(params)
   params <- ifelse(is.type(params, FALSE) | as.logical(lapply(params, is.null)),
                    lapply(params, Convert.Type), lapply(params, Convert.Template))
@@ -99,7 +99,7 @@ MakeGLA <- function(types = list(), constants = list(), representation, prototyp
   start.block()
   grokit$other <- names(AddState[[2]])
   if (length(grokit$other) != 1)
-    Stop("AddState must have exactly one argument.")
+    stop("AddState must have exactly one argument.")
   init(grokit$other)
   AddState <- Convert.Function(AddState)
   other <- grokit$other
@@ -110,10 +110,10 @@ MakeGLA <- function(types = list(), constants = list(), representation, prototyp
   grokit$result <- TRUE
   header <- as.list(GetResult[[2]]) ## from pairlist to list
   if (any(bad <- (header == "") | !is.template(header)))
-    Stop("GetResult: ", names(header)[bad], " were not given types as default arguments.")
+    stop("GetResult: ", names(header)[bad], " were not given types as default arguments.")
   if (any(tolower(unlist(lapply(header, deparse))) %in% c("json", "base::json")))
     if (length(header) > 1)
-      Stop("GetResult was given extraneous arguments for returning a JSON.")
+      stop("GetResult was given extraneous arguments for returning a JSON.")
     else
       grokit$return <- "json"
   else
@@ -133,7 +133,7 @@ MakeGLA <- function(types = list(), constants = list(), representation, prototyp
     templates <- list(...)
     required <- dummy
     if (any(bad <- !(required %in% names(templates))))
-      Stop("arguments required but not given: ", paste(required[bad], collapse = ", "))
+      stop("arguments required but not given: ", paste(required[bad], collapse = ", "))
 
     inputs <- substitute(inputs)
     check.exprs(inputs)
@@ -145,11 +145,11 @@ MakeGLA <- function(types = list(), constants = list(), representation, prototyp
     outputs <- substitute(outputs)
     check.atts(outputs)
     if (is.auto(outputs))
-      Stop("outputs not allowed to be AUTO.")
+      stop("outputs not allowed to be AUTO.")
     outputs <- convert.atts(outputs)
     l <- DUMMY
     if (length(outputs) != l)
-      Stop("There must be exactly ", l, "output", if (l > 1) "s", " specified.")
+      stop("There must be exactly ", l, "output", if (l > 1) "s", " specified.")
 
     gla <- DUMMY
     agg <- Aggregate(data, gla, inputs, outputs)

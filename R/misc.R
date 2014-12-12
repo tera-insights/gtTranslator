@@ -24,14 +24,14 @@ declare <- function(names) {
 
   ## cannot re-declare variables
   if (any(bad <- is.declared(names)))
-    Stop("cannot re-declare variables: ", paste(names[bad], collapse = ", "))
+    stop("cannot re-declare variables: ", paste(names[bad], collapse = ", "))
 
   ## checks that names are syntactically correct in C++, i.e. only underscores and alpha-numeric
   if (length(bad <- grep("[^[:alnum:]_]", names)) != 0)
-    Stop("illegal local names: ", paste(names[bad], collapse = ", "))
+    stop("illegal local names: ", paste(names[bad], collapse = ", "))
 
   if (any(bad <- as.logical(lapply(names, is.type))))
-    Stop("type names used as variables: ", paste(names[bad], collapse = ", "))
+    stop("type names used as variables: ", paste(names[bad], collapse = ", "))
 
   for (name in unlist(lapply(names, as.character)))
     grokit$vars[[name]] <- 1

@@ -2,8 +2,8 @@ Convert.Function <- function(fun) {
   Convert.Stmt(as.block(fun[[3]]))
 }
 
-## This function only deuces what kind of statement the expression is, such as
-## an assignment, a for loop, a conditional, etc. It then calls the appropiate
+## This function only deduces what kind of statement the expression is, such as
+## an assignment, a for loop, a conditional, etc and then calls the appropiate
 ## translator. This strategy is used to better section the code and facilitates
 ## future additions to it.
 Convert.Stmt <- function(expr) {
@@ -17,14 +17,14 @@ Convert.Stmt <- function(expr) {
         NULL ## Warning has invisible return
       },
       list = {
-        Stop("a list appeared on line ", grokit$line, ". Please report this.")
+        stop("a list appeared on line ", grokit$line, ". Please report this.")
       },
       language = {
         switch(
             expr[[1]], ## keywords and special functions go here
             "<-" = Convert.Declaration(expr),
             "=" = Convert.Assignment(expr),
-            "<<-" = Stop("only <- and = are allowed for assignment."),
+            "<<-" = stop("only <- and = are allowed for assignment."),
             "for" = Convert.For(expr),
             "repeat" = Convert.Loop(expr),
             "while" = Convert.Loop(expr),
@@ -51,7 +51,7 @@ Convert.Stmt <- function(expr) {
             Convert.Expr(expr)
             )
       },
-      Stop("unexpected expr with type ", typeof(expr), ":\n", deparse(expr))
+      stop("unexpected expr with type ", typeof(expr), ":\n", deparse(expr))
       )
   statement
 }
@@ -61,7 +61,7 @@ Convert.Return <- function(expr) {
     result <- as.list(expr)[-1]
     names <- names(result)
     if (is.null(names) || any(names == ""))
-      Stop("return for JSON must be given argument names: ", deparse(expr))
+      stop("return for JSON must be given argument names: ", deparse(expr))
     values <- lapply(result, Convert.Expr)
     grokit$results <- c(grokit$results, list(values))
     ## subtract 1 to account for PHP arrays starting at 0
@@ -69,16 +69,16 @@ Convert.Return <- function(expr) {
   } else if (grokit$return == "tuple") {
     result <- as.list(expr)[-1]
     if (!is.null(names(result)))
-      Stop("return for tuple should not be given argument names: ", deparse(expr))
+      stop("return for tuple should not be given argument names: ", deparse(expr))
     if (length(grokit$header) != length(result))
-      Stop("expected ", length(grokit$header), " arguments to return: ", deparse(expr))
+      stop("expected ", length(grokit$header), " arguments to return: ", deparse(expr))
     values <- lapply(result, Convert.Expr)
     grokit$results <- c(grokit$results, list(values))
     ## subtract 1 to account for PHP arrays starting at 0
     encode(paste0("result", length(grokit$results) - 1))
   } else if (grokit$result == "") {
     if (length(expr) > 2)
-      Stop("return given more than 1 argument.")
+      stop("return given more than 1 argument.")
     paste("return", Convert.Expr(expr[[2]]))
   }
 }
@@ -88,14 +88,14 @@ Convert.Declaration <- function(expr) {
   value <- expr[[3]]
   if (is.symbol(target)) {
     if (is.declared(target))
-      Stop("cannot assign a type to a previously delcared variable: ", deparse(expr))
+      stop("cannot assign a type to a previously delcared variable: ", deparse(expr))
     if (!is.type(value))
-      Stop("type improperly specified: ", deparse(expr))
+      stop("type improperly specified: ", deparse(expr))
     declare(target)
     paste(Convert.Type(value), Convert.Ident(target, FALSE))
   } else {
     ## This seems to hold true. Slight possibility to be changed in the future.
-    Stop("type assignment only works on basic variables: ", deparse(expr))
+    stop("type assignment only works on basic variables: ", deparse(expr))
   }
 }
 
@@ -128,7 +128,7 @@ Convert.Assignment <- function(expr) {
 Convert.For <- function(expr) {
   index <- expr[[2]]
   if (!is.symbol(index))
-    Stop("loop index is somehow not a symbol. Please report this.")
+    stop("loop index is somehow not a symbol. Please report this.")
   assign(index, "AUTO")
 
   ## Translating sequence
@@ -173,9 +173,9 @@ Convert.Locals <- function(expr) {
   locals <- names(types)
 
   if (any(bad <- is.declared(locals)))
-    Stop("`locals` used to re-declare a variable: ", paste(locals[bad], collapse = ", "))
+    stop("`locals` used to re-declare a variable: ", paste(locals[bad], collapse = ", "))
   if (any(bad <- !is.type(types)))
-    Stop("types in `locals` specified incorrectly:\n", paste("\t", lapply(types[bad], deparse), collapse = ",\n"))
+    stop("types in `locals` specified incorrectly:\n", paste("\t", lapply(types[bad], deparse), collapse = ",\n"))
 
   types <- lapply(types, Convert.Type)
   paste(Convert.Type, locals, collapse = ";\n")
@@ -189,13 +189,13 @@ Convert.Expr <- function(expr) {
       if (is.symbol(expr[[2]]) && !is.null(grokit$other) && grokit$other == expr[[2]]) {
         ## Case of field in other state
         if (!(is.symbol(expr[[3]]) && as.character(expr[[3]]) %in% grokit$fields))
-          Stop("when calling `$` on `other`, the second argument should be a field: ", deparse(expr))
+          stop("when calling `$` on `other`, the second argument should be a field: ", deparse(expr))
         paste0(Convert.Expr(expr[[2]]), ".", Convert.Expr(expr[[3]]))
         ## Case of get(PHPtype, attribbute)
       } else if (is.getter(expr)) {
-        Stop("type querying is only allowed in `constants`: ", deparse(expr))
+        stop("type querying is only allowed in `constants`: ", deparse(expr))
       } else {
-        Stop("incorrect call to `$`: ", deparse(expr));
+        stop("incorrect call to `$`: ", deparse(expr));
       }
     } else {
       fun <- Convert.Call(expr[[1]])
@@ -208,20 +208,20 @@ Convert.Expr <- function(expr) {
             pattern <- gsub(paste0("@", i), args[[i]], pattern)
           pattern
         } else {
-          Stop("operator ", fun, " cannot take ", length(args), "arguments.\n",
+          stop("operator ", fun, " cannot take ", length(args), "arguments.\n",
                "expr: ", deparse(expr))
         }
         ## The following are basic cases of other operators.
       } else if (fun %in% c("<-", "<<-")) {
-        Stop("nested assignment is dis-allowed.")
+        stop("nested assignment is dis-allowed.")
       } else if (fun == ":") {
-        Stop("sequence operator is allowed only in for loops.")
+        stop("sequence operator is allowed only in for loops.")
       } else if (fun == "[") {
-        Stop("template arguments are only allowed for function calls.")
+        stop("template arguments are only allowed for function calls.")
       } else if (fun %in% c("c", "list")) {
-        Stop("combining function is dis-allowed.")
+        stop("combining function is dis-allowed.")
       } else if (fun == "return") {
-        Stop("return only allowed at the top-most level of statements.")
+        stop("return only allowed at the top-most level of statements.")
       } else if (fun == "{") {
         paste0("{", paste(args, collapse = ", "), "}")
       } else if (fun == "(") {
@@ -230,9 +230,9 @@ Convert.Expr <- function(expr) {
         ## Casting
         fun <- expr[[1]]
         if (!is.symbol(fun))
-          Stop("type conversion function formatted incorrectly.")
+          stop("type conversion function formatted incorrectly.")
         if (length(args) != 1)
-          Stop("type casting takes a single argument.")
+          stop("type casting takes a single argument.")
         paste(paste0("(", substring(as.character(fun), 4), ")"), Convert.Expr(expr[[2]]))
       } else {
         ## Basic call
@@ -249,7 +249,7 @@ Convert.Expr <- function(expr) {
   } else if (is.logical(expr)) {
     if (expr) "true" else "false"
   } else {
-    Stop("unexpected language structure. Please report this.")
+    stop("unexpected language structure. Please report this.")
   }
 }
 
@@ -269,7 +269,7 @@ Convert.Call <- function(expr) {
            paste(lapply(as.list(expr)[-1], Convert.Expr), collapse = ", "),
            ")")
   else
-    Stop("invalid call to a function: ", deparse(expr))
+    stop("invalid call to a function: ", deparse(expr))
 }
 
 ## value is true if the identifier is treated as a value and not an lvalue.
@@ -279,9 +279,9 @@ Convert.Ident <- function(exprs, value = TRUE) {
     exprs <- list(exprs)
   unlist(lapply(exprs, function(expr) {
     if (!is.declared(expr))
-      Stop("undeclared variable: ", expr)
+      stop("undeclared variable: ", expr)
     if (is.declared(expr) && value && !is.init(expr))
-      Stop("uninitialized variable used: ", expr)
+      stop("uninitialized variable used: ", expr)
     as.character(expr)
   }))
 }
@@ -298,7 +298,7 @@ Convert.Constants <- function(exprs) {
     } else if (!is.language(expr)) { ## constant value
       Convert.Expr(expr)
     } else {
-      Stop("invalid specification of constant: ", deparse(expr))
+      stop("invalid specification of constant: ", deparse(expr))
     }
   })
 }
@@ -332,18 +332,18 @@ Convert.Template <- function(expr) {
 Convert.TypeName <- function(expr) {
   if (is.call(expr)) {
     if (!is.call.to(expr, "::") && is.symbols(as.list(expr)))
-      Stop("type name specified incorrectly: ", deparse(expr))
+      stop("type name specified incorrectly: ", deparse(expr))
     paste0(expr[[2]], "::", expr[[3]])
   } else if (is.symbol(expr)) {
     paste0("base::", expr)
   } else {
-    Stop("type name specified incorrectly: ", deparse(expr))
+    stop("type name specified incorrectly: ", deparse(expr))
   }
 }
 
 Convert.Getter <- function(expr) {
   if (!is.symbol(expr[[3]]))
-    Stop("when calling `$` on a type from `types`, the second argument must be a symbol: ", deparse(expr))
+    stop("when calling `$` on a type from `types`, the second argument must be a symbol: ", deparse(expr))
   add <- list(which(grokit$typedefs == as.character(expr[[2]])) - 1)
   names(add) <- as.character(expr[[3]])
   add
