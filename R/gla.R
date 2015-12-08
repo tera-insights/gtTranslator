@@ -129,23 +129,24 @@ MakeGLA <- function(types = list(), constants = list(), representation, prototyp
   user_headers <- lapply(user.headers, as.character)
   lib_headers <- lapply(lib.headers, as.character)
 
-  gla <- function(data, ..., inputs = AUTO, outputs = DUMMY, force.frame = FALSE) {
+  gla <- function(data, ..., inputs, outputs = DUMMY, force.frame = FALSE) {
     templates <- list(...)
-    required <- dummy
+    required <- DUMMY
     if (any(bad <- !(required %in% names(templates))))
       stop("arguments required but not given: ", paste(required[bad], collapse = ", "))
 
-    inputs <- substitute(inputs)
-    check.exprs(inputs)
-    if (is.auto(inputs))
-      inputs <- convert.schema(x$schema)
     atts <- DUMMY
-    inputs <- convert.exprs(inputs, data, atts = atts)
+    if (missing(inputs)) {
+      inputs <- convert.schema(x$schema)
+      grokit$expressions[atts] <- grokit$expressions[inputs]
+    } else {
+      inputs <- substitute(inputs)
+      check.exprs(inputs)
+      inputs <- convert.exprs(inputs, data, atts = atts)
+    }
 
     outputs <- substitute(outputs)
     check.atts(outputs)
-    if (is.auto(outputs))
-      stop("outputs not allowed to be AUTO.")
     outputs <- convert.atts(outputs)
     l <- DUMMY
     if (length(outputs) != l)
@@ -155,12 +156,12 @@ MakeGLA <- function(types = list(), constants = list(), representation, prototyp
     agg <- Aggregate(data, gla, inputs, outputs)
   }
 
-  formals(gla)[[3]] <- as.call(c(as.symbol("c"), lapply(names(header), as.symbol)))
+  formals(gla)[[4]] <- as.call(c(as.symbol("c"), lapply(names(header), as.symbol)))
 
   body(gla)[[3]][[3]] <- as.call(c(as.symbol("c"), grokit$templates))
-  body(gla)[[8]][[3]] <- as.call(c(as.symbol("c"), names(params)))
-  body(gla)[[14]][[3]] <- length(header)
-  body(gla)[[16]][[3]] <- call("GLA",
+  body(gla)[[5]][[3]] <- as.call(c(as.symbol("c"), names(params)))
+  body(gla)[[10]][[3]] <- length(header)
+  body(gla)[[12]][[3]] <- call("GLA",
                                substitute(translator::UserDefined),
                                initialized = initialized,
                                constructor = constructor,
